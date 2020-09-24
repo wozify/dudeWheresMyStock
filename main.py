@@ -1,66 +1,34 @@
-import re
+import requests
+from bs4 import BeautifulSoup
 import time
 import smtplib
-import requests
-from datetime import datetime 
-from bs4 import BeautifulSoup
 
-def stock_check(url):
-    """Checks url for 'sold out!' substring in buy-now-bar-con"""
-    soup = BeautifulSoup(url.content, "html.parser") #Need to use lxml parser
-    stock = soup.find("div", "buy-now-bar-con") #Check the html tags for sold out/coming soon info.
-    stock_status = re.findall(r"sold out!", str(stock)) #Returns list of captured substring if exists.
-    return stock_status # returns "sold out!" from soup string.
+while True:
+    url = "https://www.newegg.com/p/pl?N=100007709%20601357247"
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "lxml")
 
-def send_email(address, password, message):
-    """Send an e-mail to yourself!"""
-    server = smtplib.SMTP("smtp.gmail.com", 587) #e-mail server
-    server.ehlo()
-    server.starttls()
-    server.login(address,password) #login
-    message = str(message) #message to email yourself
-    server.sendmail(address,address,message) #send the email through dedicated server
-    return
+    # if the number of times the word "Google" occurs on the page is less than 1,
+    if str(soup).find("Add to cart ") == -1:
+        time.sleep(60)
+        continue
 
-def stock_check_listener(url, address, password, run_hours):
-    """Periodically checks stock information."""
-    listen = True # listen boolean
-    start = datetime.now() # start time
-    while(listen): #while listen = True, run loop
-        if "sold out!" in stock_check(url): #check page
-            now = datetime.now()
-            print(str(now) + ": Not in stock.")
-        else:
-            message = str(now) + ": NOW IN STOCK!"
-            print(message)
-            send_email(address, password, message)
-            listen = False
+    else:
+        msg = 'Subject: Guess What? 3080s are back in stock on Newegg!'
+        fromaddr = 'YOUR_EMAIL_ADDRESS'
+        toaddrs = ['YOUR_EMAIL_ADDRESS']
 
-        duration = (now - start)
-        seconds = duration.total_seconds()
-        hours = int(seconds/3600)
-        if hours >= run_hours: #check run time
-            print("Finished.")
-            listen = False
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login("YOUR_EMAIL_ADDRESS", "YOUR_PASSWORD")
 
-        time.sleep(30*60) #Wait N minutes to check again.    
-    return
+        # Print the email's contents
+        print('From: ' + fromaddr)
+        print('To: ' + str(toaddrs))
+        print('Message: ' + msg)
 
-if __name__=="__main__":
+        server.sendmail(fromaddr, toaddrs, msg)
+        server.quit()
 
-    #Set url and userAgent header for javascript issues.
-    page = "https://shop.bitmain.com/antminer_s9_asic_bitcoin_miner.htm"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Content-Type': 'text/html'}
-
-    #URL request.
-    url = requests.get(url=page,
-                       headers=headers)
-
-    #Run listener to stream stock checks.
-    address = "user@gmail.com" #your email
-    password = "user.password" #your email password
-    stock_check_listener(url=url,
-                         address=address,
-                         password=password,
-                         run_hours=1) 
+        break
